@@ -27,6 +27,10 @@ from cv_bridge import CvBridge, CvBridgeError
 
 
 
+frame_id="camera_depth_optical_frame"
+
+
+
 class PoseDetector:
 
     def __init__(self, mode=True, upBody=False, smooth=True, detectionCon=0.8, trackCon=0.8,model=1):
@@ -172,13 +176,18 @@ class rs_camera:
 			self.aligned_depth_frame = self.aligned_frames.get_depth_frame() # aligned_depth_frame is a 640x480 depth image
 
 
+			############applying some filters to the depth image#############3
+			
 			#self.aligned_depth_frame = rs.decimation_filter(1).process(self.aligned_depth_frame)######
 			#self.aligned_depth_frame = rs.disparity_transform(True).process(self.aligned_depth_frame)#########3
-			#self.aligned_depth_frame = rs.spatial_filter().process(self.aligned_depth_frame)#######3
+			self.aligned_depth_frame = rs.spatial_filter().process(self.aligned_depth_frame)#######3
 			#self.aligned_depth_frame = rs.temporal_filter().process(self.aligned_depth_frame)#########33
 			#depth_frame = rs.disparity_transform(False).process(depth_frame)
 			self.aligned_depth_frame = rs.hole_filling_filter().process(self.aligned_depth_frame)######3
 			#print(aligned_depth_frame[1])
+			
+			
+			############done applying filters################3
 
 
 			self.color_frame = self.aligned_frames.get_color_frame()
@@ -191,24 +200,26 @@ class rs_camera:
 	
 	def pc(self,img,depth):
 
+		#######################modifying the depth image using the segmentation mask######
+
+
+
 		
-		#self.depth_segmented=np.where(img==255,0,depth)
-		self.mask=img
-		#print(depth.shape)
+		
 		depth_segmented=depth
 		depth_segmented=np.where(img==255,0,depth_segmented)
 		depth_segmented=np.where(img==0,0,depth_segmented)
-		depth_segmented=np.asanyarray(depth_segmented) #*self.depth_scale
-		
-		
+		depth_segmented=np.asanyarray(depth_segmented) 
 		depth_segmented=(depth_segmented.astype(np.uint16))
 		
-		#print(depth_segmented[200][200])
 
-		#subprocess.run("rosservice call /oct/reset ",shell=True)
 		depth_segmented=self.convert_cv2_to_ros_msg(depth_segmented)
+		
+		#################depth image modified and sent to the depth_image_proc node "depth_to_pc.launch"
 
 		depth_publisher.publish(depth_segmented)
+		
+		#publish the camera info
 		camera_info_publisher.publish(camera_info_msg)
 		
 		
@@ -221,13 +232,16 @@ class rs_camera:
 		Convert from a cv2 image to a ROS Image message.
 		"""
 		return self._cv_bridge.cv2_to_imgmsg(cv2_data, image_encoding)   
+		
+		
+		
 	def point_cloud_callback(self,msg):
-    # Read the point cloud data
+    		# Read the point cloud data
 
-    # Modify the header frame
-		msg.header.frame_id = "camera_depth_optical_frame"
+    		# Modify the header frame
+		msg.header.frame_id = frame_id
 
-    # Publish the modified point cloud
+    		# Publish the modified point cloud
 		cloud_pub.publish(msg) 
 		
 
@@ -238,22 +252,40 @@ class rs_camera:
 
 
 
-
+# create a realsense camera class
 camera_1=rs_camera()
+# align frames to the depth sensor
 camera_1.align("depth")
 
+
+
+
+# create mediapipe detector class
 detector=PoseDetector()
+
+
 rospy.init_node('pose_estimator')
+
+
+# this publisher send the modified depth image to the depth_image_proc node
 depth_publisher = rospy.Publisher('depth_pub', Image, queue_size=10)
 
+
+#this send the CameraInfo to the depth_image_proc node
 camera_info_publisher=rospy.Publisher('rs_depth_info', CameraInfo, queue_size=10)
 
+# this subscribes to the point cloud generated from the depth_proc_image
 cloud_sub=rospy.Subscriber('/camera/depth/points', PointCloud2, camera_1.point_cloud_callback)
 
 
+
+#this republishes the new and final point cloud after modifying the head frame id
 cloud_pub=rospy.Publisher('/camera/depth/points/with_frame', PointCloud2, queue_size=10)
 
 
+
+#######################################################3
+#############Creating the CameraInfo msg################3
 camera_info_msg = CameraInfo()
 camera_info_msg.width = camera_1.intr.width
 camera_info_msg.height = camera_1.intr.height
@@ -270,10 +302,12 @@ camera_info_msg.P = [camera_1.intr.fx, 0.0, camera_1.intr.ppx, 0.0,
 camera_info_msg.D=[0.0,0.0,0.0,0.0,0.0]
 camera_info_msg.header = Header()
 #camera_info_msg.header.stamp = rospy.Time.now()
-camera_info_msg.header.frame_id = "camera_depth_optical_frame"
+camera_info_msg.header.frame_id = frame_id
+#################done creating##########################
+#########################################################
 
 
-#camera_1=kinect_c()
+
 pTime=0
 while True:
     
@@ -315,23 +349,7 @@ while True:
 
 	except:
 		pass
-	#img_segmented=cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-	#camera_1.pc(img_segmented,depth_img)
-
-	#pcl=[]
-	#depth_image_3d = np.dstack((depth_img,depth_img,depth_img)) #depth image is 1 channel, color is 3 channels
-
-		
-	#np.where(image[:,:]==(255,255,255),[10,10,10,101,20,10],pcl)
-	#try:           
-		#camera_1.create_point_cloud(img_segmented)
-	#xcept:
-	#	pass
-
 
 	if cv2.waitKey(5) & 0xFF == 27:
 		break
-	#rospy.spin()                                
-	#rospy.spin()
-	     
-#"""	    
+
