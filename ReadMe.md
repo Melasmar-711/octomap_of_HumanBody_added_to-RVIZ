@@ -9,6 +9,8 @@
 
 # customizing with your own pkg
 - I am using a realsense D435 camera and i am using the depht_image_proc pkg to create the point_cloud out of the of the modified depth image
-- the depth image proc return a PointCloud2 msg with no header frame id . i subscribe again to this msg and add the frame id that i desire the point cloud to be relative to. 
-- 
+- the depth image proc takes arguments (CameraInfo ,depth_image_rect) which are two topics that generated and published in the code.
+- the CameraInfo msg 
+- the depth image proc return a PointCloud2 msg with no header frame id . i subscribe again to this msg and add the frame id that i desire the point cloud to be relative to . make sure to adjust that in the segmentation_and_humanPointCloud.py if your desired frame has a different name you can find this at the beggining of the code 
+
 
