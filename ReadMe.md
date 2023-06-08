@@ -1,6 +1,8 @@
 # file setup
 1) you need to add the sensors_3d.yaml to your moveit config pkg in the config files
 2) add the sensor_manager.launch.xml to your moveit config pkg in the launch files
+3) replace the pointcloud_octomap_updater.cpp in your moveit package with the file provided ,Otherwise there it's going to try to mask the robot points in the point cloud and remove it . "this is actually a good thing if we are using the entire point cloud but we are using a segmented pointcloud" . you can find the file under moveit/moveit_ros/perception/pointcloud_octomap_updater/src.
+
 
 # workflow
 1) launch the depth_to_pc.launch which creates a depth_image_proc node
